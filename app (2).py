@@ -1,33 +1,54 @@
 # TODO: Build your Streamlit chatbot application
 
 import streamlit as st
+import os
+from langchain_groq import ChatGroq
+from langchain_core.messages import HumanMessage, AIMessage
 
-# your code here
-
+# --- Configuration ---
 st.title("My Streamlit Chatbot")
 
-# Initialize chat history in session state
+# Set your Groq API key here (or use Streamlit secrets: st.secrets["GROQ_API_KEY"])
+os.environ["GROQ_API_KEY"] = "YOUR_GROQ_API_KEY_HERE"
+
+# Initialize the Groq model
+
+# Initialize the Groq model
+# You can change the model name based on what Groq currently supports (e.g., llama3-8b-8192)
+llm = ChatGroq(model_name="llama3-8b-8192")
+
+# --- Chat History Initialization ---
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-# Display chat messages from history on app rerun
+# Display past chat messages on app rerun
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
-# React to user input
+# --- Chat Logic ---
+# Get user input
 if prompt := st.chat_input("How can I help you today?"):
     
-    # Display user message in chat message container
-    st.chat_message("user").markdown(prompt)
-    
-    # Add user message to chat history
+    # 1. Display and save the user's message
+    with st.chat_message("user"):
+        st.markdown(prompt)
     st.session_state.messages.append({"role": "user", "content": prompt})
 
-    # Display assistant response in chat message container (Simple Echo for now)
-    response = f"Echo: {prompt}"
+    # 2. Format history for LangChain
+    chat_history = []
+    for msg in st.session_state.messages:
+        if msg["role"] == "user":
+            chat_history.append(HumanMessage(content=msg["content"]))
+        else:
+            chat_history.append(AIMessage(content=msg["content"]))
+
+    # 3. Call the LLM
     with st.chat_message("assistant"):
-        st.markdown(response)
-        
-    # Add assistant response to chat history
-    st.session_state.messages.append({"role": "assistant", "content": response})
+        # We can use st.spinner to show the user that the AI is thinking
+        with st.spinner("Thinking..."):
+            response = llm.invoke(chat_history)
+            st.markdown(response.content)
+            
+    # 4. Save the AI's response to history
+    st.session_state.messages.append({"role": "assistant", "content": response.content})
